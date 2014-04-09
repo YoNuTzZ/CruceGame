@@ -115,25 +115,19 @@ EXPORT int round_findPlayerIndexRound(const struct Player *player,
 EXPORT int round_addPlayerHand(struct Player *player, struct Hand *hand);
 
 /**
- * @brief Places a card from a player to a hand.
+ * @brief Places a card from a player to a hand and offers the player 20 points
+ *        if has 3 and 4 of same suit or 40 points if has 3 and 4 of same suit
+ *        as the trump.
  *
  * @param player Pointer to the player who places the card.
  * @param cardId Id of the card placed by the player (id from Player.cards).
- * @param hand Pointer to the hand in which the card is placed.
+ * @param handId Id of the hand in which the card is placed.
+ * @param round  Pointer to the round in which is hand.
  *
  * @return NO_ERROR on success, error code otherwise.
  */
-EXPORT int round_putCard(struct Player *player, int cardId, struct Hand *hand);
- 
-/**
- * @brief Computes the score of a hand (in game points).
- *
- * @param hand Pointer to the hand for which the score is computed.
- *
- * @return Integer representing the score or negative error code on failure.
- *
- */
-EXPORT int round_computeScore(const struct Hand *hand);
+EXPORT int round_putCard(struct Player *player, int cardId,
+                         int handId, struct Round *round);
 
 /**
  * @brief Allocates memory for and initializes a round.

@@ -1,0 +1,35 @@
+TO DO LIST for v0.4.0
+
+1. Curses windows
+
+The use of windows is a must for any user interface. As our interface gets
+more and more complicated, we need to implement the use of windows. Our
+interface needs the following windows:
+
+T1.1 Cards on table
+T1.2 Cards in player's hand
+T1.3 Score table
+
+The windows are to be redrawn at every function call.
+
+T2. Color suits
+
+Color suits differently for better readability.
+
+T3. Add tests for newly created functions.
+
+T3.1 Add tests for game_findNextAllowedCard()
+T3.2 Add tests for game_findPreviousAllowedCard()
+
+T4. Tests for game_createGame() are failing, probably because of the new
+    restrictions for its argument in debug mode.
+
+T5. There are some issues with names:
+
+T5.1 Allow space character inside a name.
+T5.2 Check for buffer overflow when reading a name.
+T5.3 Remove team name member.
+
+T6. Create multiple build targets (release and debug) and find a way to allow
+    configure on machines without cutter installed.
+

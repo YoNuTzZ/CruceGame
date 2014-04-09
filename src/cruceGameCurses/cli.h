@@ -1,4 +1,11 @@
+/**
+ * @file cli.h
+ * @brief Contains declaration of the functions used for building the user
+ *        interface.
+ */
+
 #include <cruceGame.h>
+#include <ncurses.h>
 
 /**
  * @brief Function to display a greeting message at the beginning of a new
@@ -13,19 +20,28 @@ void welcomeMessage();
  *
  * @param card Pointer to the card to be printed.
  * @param position Position of the card on screen (in cards).
+ * @param selected Highlights the card with HIGHLIGHT_ATTRIBUTE if this is
+ *                 non-zero, otherwise just displays the card.
+ * @param win The window in which to display the card.
  *
  * @return NO_ERROR or 0 on success, other value on failure.
  */
-int printCard(struct Card *card, int position);
+int printCard(struct Card *card, int position, int selected, WINDOW *win);
 
 /**
  * @brief Function to print all cards in a player's hand.
  *
  * @param player The player whose cards to be printed.
+ * @param game The game which contains the player.
+ * @param selected The position of the selected card. If there is no card at
+ *                 that position (there is a NULL card or it is out of range) 
+ *                 no card will be selected.
+ * @param win The window in which to display the cards.
  *
  * @return NO_ERROR or 0 on success, other value on failure.
  */
-int printPlayerCards(struct Player *player);
+int printPlayerCards(struct Game *game, struct Player *player, int selecte,
+                     WINDOW *win);
 
 /**
  * @brief Function to get the number of players from user.
@@ -90,4 +106,21 @@ int getBid(struct Game* game, int playerId);
  * @return NO_ERROR on success, otherwise POINTER_NULL on failure
  */
 int displayWinner(struct Team *winner);
+
+/**
+ * @brief Function to get the score limit from user.
+ *
+ * @return The score limit (11-15-21).
+ */
+int getScoreLimit();
+
+/**
+ * @brief Prints the score differences between rounds.
+ *
+ * @param terminatedRound The round that just has finished.
+ * @param oldScore Old score for every player before the terminated round. 
+ *
+ * @return int The size of the biggest name of a player in a round.
+ */
+int printRoundTerminationMessage(struct Round *terminatedRound, int *oldScore);
 

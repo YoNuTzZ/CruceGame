@@ -1,12 +1,24 @@
+/**
+ * @file game.c
+ * @brief Contains implementations of the functions used for game-related
+ *        operations.
+ */
+
 #include "game.h"
 #include "errors.h"
 #include "constants.h"
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 struct Game *game_createGame(int pointsNumber)
 {
+#ifndef DEBUG
+    if (pointsNumber != 11 && pointsNumber != 15 && pointsNumber != 21)
+        return NULL;
+#endif
+
     struct Game *newGame = malloc(sizeof(struct Game));
     if (newGame == NULL)
         return NULL;
@@ -17,11 +29,7 @@ struct Game *game_createGame(int pointsNumber)
     for (int i = 0; i < MAX_GAME_TEAMS; i++)
         newGame->teams[i] = NULL;
 
-    if (pointsNumber > 0)
-        newGame->pointsNumber = pointsNumber;
-    else
-        return NULL;
-
+    newGame->pointsNumber = pointsNumber;
     newGame->numberPlayers = 0;
     newGame->round = NULL;
     newGame->deck = NULL;
@@ -52,6 +60,9 @@ int game_addPlayer(struct Player *player, struct Game *game)
     for (int i = 0; i < MAX_GAME_PLAYERS; i++) {
         if (game->players[i] == player)
             return DUPLICATE;
+        if (game->players[i] != NULL &&
+            !strcmp(game->players[i]->name, player->name))
+            return DUPLICATE_NAME;
     }
 
     for (int i = 0; i < MAX_GAME_PLAYERS; i++) {
@@ -180,8 +191,6 @@ int game_checkCard(struct Player *player, struct Game *game,
         return HAND_NULL;
     if (game->numberPlayers == 0)
         return GAME_EMPTY;
-    if (game->numberPlayers == 1)
-        return INSUFFICIENT_PLAYERS;
     if (game->numberPlayers * MAX_CARDS > DECK_SIZE &&
        (idCard < 0 || idCard > DECK_SIZE / game->numberPlayers - 1))
         return ILLEGAL_VALUE;
@@ -218,5 +227,59 @@ int game_checkCard(struct Player *player, struct Game *game,
         return 1;
 
     return 0;
+}
+
+/**
+ * @brief Helper for function that search for an allowed card.
+ *
+ * @param player The player who's hand is searched.
+ * @param game The game in which the player and the hand belongs.
+ * @param hand The hand where is supposed to put the card.
+ * @param currentCard The cardId to look for.
+ * @param searchPattern Function searches the player's hand using a pattern
+ *                      provided by this argument. Currently, there are allowed
+ *                      only 1 and -1 as search patterns, altough the function
+ *                      may be extended to use other patterns as well.
+ *
+ * @return The first allowed card found.
+ */
+int findAllowedCard(struct Player *player, struct Game *game, struct Hand *hand,
+             int currentCard, int searchPattern)
+{
+    if (player == NULL)
+        return PLAYER_NULL;
+    if (game == NULL)
+        return GAME_NULL;
+    if (hand == NULL)
+        return HAND_NULL;
+    if (searchPattern != 1 && searchPattern != -1)
+        return ILLEGAL_VALUE;
+    if (game->numberPlayers * MAX_CARDS > DECK_SIZE &&
+       (currentCard < 0 || currentCard > DECK_SIZE / game->numberPlayers - 1))
+        return ILLEGAL_VALUE;
+
+    while (1) {
+        currentCard += searchPattern;
+        if (currentCard < 0)
+            currentCard += MAX_CARDS;
+        while (player->hand[currentCard % MAX_CARDS] == NULL && abs(currentCard) <= 15)
+            currentCard += searchPattern;
+        if (game_checkCard(player, game, hand, currentCard % MAX_CARDS) == 1)
+            return currentCard % MAX_CARDS;
+        if (abs(currentCard) > 15) 
+             return NOT_FOUND;
+    }
+}
+
+int game_findNextAllowedCard(struct Player *player, struct Game *game,
+                             struct Hand *hand, int currentCard)
+{
+    return findAllowedCard(player, game, hand, currentCard, 1);
+}
+
+int game_findPreviousAllowedCard(struct Player *player, struct Game *game,
+                                 struct Hand *hand, int currentCard)
+{
+    return findAllowedCard(player, game, hand, currentCard, -1);
 }
 

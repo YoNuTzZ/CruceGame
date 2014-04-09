@@ -1,3 +1,10 @@
+/**
+ * @file cli.c
+ * @brief Contains implementations of the functions used for creating
+ *        the user interface. These functions are declared in the 
+ *        header file cli.h.
+ */
+
 #include "cli.h"
 
 #include <curses.h>
@@ -6,26 +13,34 @@
 
 #define MAX_CARDS_PER_LINE 8
 #define MAX_NAME_SIZE 50
+#define ROUND_DIALOG_SCORE_SIZE 5
+
+#define HIGHLIGHT_ATTRIBUTE A_BLINK
 
 void welcomeMessage()
 {
     printw("Welcome to a new game of Cruce\n\n");
 }
 
-int printCard(struct Card *card, int position)
+int printCard(struct Card *card, int position, int selected, WINDOW *win)
 {
+    int colorPair;
     char suit[] = {0xE2, 0x99, 0x00, 0x00};
     switch (card->suit) {
         case DIAMONDS:
+            colorPair = 3;
             suit[2] = 0xA6;
             break;
         case CLUBS:
+            colorPair = 4;
             suit[2] = 0xA3;
             break;
         case HEARTS:
+            colorPair = 1;
             suit[2] = 0xA5;
             break;
         case SPADES:
+            colorPair = 2;
             suit[2] = 0xA0;
             break;
         default:
@@ -52,38 +67,90 @@ int printCard(struct Card *card, int position)
             return ILLEGAL_VALUE;
     }
 
+    char upLeftCorner[]        = {0xE2, 0x95, 0xAD, 0x00};
+    char upRightCorner[]       = {0xE2, 0x95, 0xAE, 0x00};
+    char downLeftCorner[]      = {0xE2, 0x95, 0xB0, 0x00};
+    char downRightCorner[]     = {0xE2, 0x95, 0xAF, 0x00};
+    char horizontalLine[]      = {0xE2, 0x94, 0x80, 0x00};
+    char verticalLine[]        = {0xE2, 0x94, 0x82, 0x00};
+    
     int x, y;
-    getyx(stdscr, y, x);
-    printw("  %d  ", position + 1);
-    move(y + 1, x);
-    printw(" ___ ");
-    move(y + 2, x);
-    printw("|%c  |", value);
-    move(y + 3, x);
-    printw("|%s  |", suit);
-    move(y + 4, x);
-    printw("|  %s|", suit);
-    move(y + 5, x);
-    printw("|  %c|", value);
-    move(y + 6, x);
-    char bottom[] = {0xE2, 0x80, 0xBE, 0x00};
-    printw(" %s%s%s ", bottom, bottom, bottom);
-    move(y, x + 6);
-    refresh();
+    getyx(win, y, x);
+    wprintw(win, "  %d  ", position + 1);
+    wattroff(win, COLOR_PAIR(1));
+    wmove(win, y + 1, x);
+
+    if (selected)
+        wattron(win, HIGHLIGHT_ATTRIBUTE);
+
+    wprintw(win, "%s%s%s%s%s%s", upLeftCorner, horizontalLine, horizontalLine,
+             horizontalLine, horizontalLine, upRightCorner);
+
+    wmove(win, y + 2, x);
+    wprintw(win, "%s%c   %s", verticalLine, value, verticalLine);
+    wmove(win, y + 3, x);
+
+    wprintw(win, "%s", verticalLine);
+    wattron(win, COLOR_PAIR(colorPair));
+    wprintw(win, "%s", suit);
+    wattroff(win, COLOR_PAIR(colorPair));
+    wprintw(win, "   %s", verticalLine);
+    wmove(win, y + 4, x);
+
+    wprintw(win, "%s    %s", verticalLine, verticalLine);
+    wmove(win, y + 5, x);
+    wprintw(win, "%s", verticalLine);
+    wattron(win, COLOR_PAIR(colorPair));
+    wprintw(win, "  %s", suit);
+    wattroff(win, COLOR_PAIR(colorPair));
+
+    wprintw(win, " %s", verticalLine);
+    wmove(win, y + 6, x);
+    wprintw(win, "%s   %c%s", verticalLine, value, verticalLine);
+    wmove(win, y + 7, x);
+
+    wprintw(win, "%s%s%s%s%s%s",downLeftCorner, horizontalLine,horizontalLine, 
+            horizontalLine, horizontalLine, downRightCorner);
+
+    if (selected)
+        wattroff(win, HIGHLIGHT_ATTRIBUTE);
+    wmove(win, y + 9, x);
+    wmove(win, y, x + 6);
+    wrefresh(win);
 
     return NO_ERROR;
 }
 
-int printPlayerCards(struct Player *player)
+int printPlayerCards(struct Game *game, struct Player *player, int selected,
+                      WINDOW *win)
 {
     if (player == NULL)
         return PLAYER_NULL;
+    if (win == NULL)
+        return POINTER_NULL;
+
+    wprintw(win, "Your cards are:\n");
+
+    int handId = 0;
+    while(game->round->hands[handId]){
+        handId++;
+    }
+    if (handId > 0)
+        handId--;
 
     for (int i = 0; i < MAX_CARDS; i++) {
-        if (player->hand[i] != NULL)
-            printCard(player->hand[i], i);
+        if (player->hand[i] != NULL) {
+            if (!game_checkCard(player, game, game->round->hands[handId], i)) {
+                wattron(win, COLOR_PAIR(1));
+                printCard(player->hand[i], i, i==selected, win);
+                wattroff(win, COLOR_PAIR(1));
+            } else {
+                printCard(player->hand[i], i, i==selected, win);
 
+            }
+        }
     }
+
     return NO_ERROR;
 }
 
@@ -201,26 +268,6 @@ int printScore(struct Game *game, struct Round *round)
     return NO_ERROR;
 }
 
-int pickCard (struct Player *player, struct Game *game, struct Hand *hand)
-{
-    if (player == NULL)
-        return PLAYER_NULL;
-    if (game == NULL)
-        return GAME_NULL;
-    if (hand == NULL)
-        return HAND_NULL;
-
-    printw("\nInsert a card number: ");
-    char ch = getch();
-    while (ch < '1' || ch > '8' || player->hand[ch - '1'] == NULL ||
-           game_checkCard(player, game, hand, ch - '1') != 1) {
-        printw("\nInsert a correct card number: ");
-        ch = getch();
-    }
-
-    return ch - '1';
-}
-
 void createEmptyTeams(struct Game *game)
 {
     for (int i = 0; i < MAX_GAME_PLAYERS; i++) {
@@ -231,7 +278,6 @@ void createEmptyTeams(struct Game *game)
         }
     }
 }
-
 
 int formTeams (struct Game *game)
 {
@@ -326,25 +372,61 @@ int displayCardsAndPickCard(struct Game *game, int playerId)
     else
         printw("The trump was not set.\n");
 
-    printw("The cards on table: ");
-    for (int i = 0; i < MAX_GAME_PLAYERS; i++)
-        if (hand->cards[i] != NULL)
-            printCard(hand->cards[i], i);
-
     int y, x;
     getyx(stdscr, y, x);
-    move(y + 7, 0);
 
-    printw("Your cards: ");
-    printPlayerCards(player);
+    WINDOW *cardsOnTableWindow = newwin(10, 79, y, 0);
+#ifdef BORDERS
+    box(cardsOnTableWindow, 0, 0);
+#endif
+    wprintw(cardsOnTableWindow, "The cards on table: \n");
+    for (int i = 0; i < MAX_GAME_PLAYERS; i++)
+        if (hand->cards[i] != NULL)
+            printCard(hand->cards[i], i, 0, cardsOnTableWindow);
+    wrefresh(cardsOnTableWindow);
+    delwin(cardsOnTableWindow);
 
-    move(y + 14, 0);
-    int cardId = pickCard(player, game, hand);
+    refresh();
 
+    WINDOW *cardsInHandWindow = newwin(10, 79, y + 10, 0); //MAGIC NUMBERS
+#ifdef BORDERS
+    box(cardsInHandWindow, 0, 0);
+#endif
+    keypad(cardsInHandWindow, TRUE);
+    int ch, selected;
+    if (game_checkCard(player, game, hand, 0) == 1)
+        selected = 0;
+    else
+        selected = game_findNextAllowedCard(player, game, hand, 0);
+    printPlayerCards(game, player, selected, cardsInHandWindow);
+    while (( ch = wgetch(cardsInHandWindow)) != '\n') {
+        wprintw(cardsInHandWindow, "%d", ch);
+        switch (ch) {
+            case 'a':
+            case KEY_LEFT:
+                selected = game_findPreviousAllowedCard(player, game, hand,
+                                                        selected);
+                break;
+            case 'd':
+            case KEY_RIGHT:
+                selected = game_findNextAllowedCard(player, game, hand,
+                                                    selected);
+                break;
+            case 'q':
+                exit(0);
+        }
+        wclear(cardsInHandWindow);
+        printPlayerCards(game, player, selected, cardsInHandWindow);
+        wrefresh(cardsInHandWindow);
+    }
+
+    delwin(cardsInHandWindow);
+
+    move(y + 20, 0);
     if (handId == 0 && playerId == 0)
-        game->round->trump=player->hand[cardId]->suit;
+        game->round->trump=player->hand[selected]->suit;
 
-    round_putCard(player, cardId, hand);
+    round_putCard(player, selected, handId, game->round);
 
     return NO_ERROR;
 }
@@ -363,13 +445,11 @@ int getBid(struct Game *game, int playerId)
     printw("Player %d %s\n", playerId + 1,
                              game->round->players[playerId]->name);
 
-    printw("Your cards are:\n");
-
-    printPlayerCards(game->round->players[playerId]);
+    printPlayerCards(game, game->round->players[playerId], -1, stdscr);
 
     int y, x;
     getyx(stdscr, y, x);
-    move(y + 7, 0);
+    move(y + 8, 0);
 
     printw("Insert a bid please: ");
     char ch = getch();
@@ -379,7 +459,7 @@ int getBid(struct Game *game, int playerId)
         ch = getch();
     }
 
-    printw("\n");
+    printw("\n\n");
 
     return NO_ERROR;
 }
@@ -391,5 +471,96 @@ int displayWinner(struct Team *winner) {
     } else {
         return POINTER_NULL;
     }
+}
+
+int processingScore(char *score)
+{
+#ifdef DEBUG
+    return atoi(score);
+#else
+    if (strcmp(score, "11") == 0)
+        return 11;
+    if (strcmp(score, "15") == 0)
+        return 15;
+    if (strcmp(score, "21") == 0)
+        return 21;
+
+    return -1;
+#endif
+}
+
+int getScoreLimit()
+{
+    char score[3];
+
+    printw("Insert the score limit (11-15-21): ");
+    scanw("%s", score);
+
+    while (processingScore(score) == -1) {
+        printw("Insert the correct score limit (11-15-21): ");
+        scanw("%s", score);
+    }
+    printw("\n");
+
+    return processingScore(score);
+}
+
+/**
+ * @brief Returns the length of the biggest name of a player in a round,
+ *      helper for printRoundTerminationMessage.
+ *
+ * @param terminatedRound The round that has just finished. 
+ *
+ * @return The length of the biggest name of a player.
+ */
+int getBiggestNameSize(struct Round *terminatedRound)
+{
+    int maxNameSize = strlen(terminatedRound->players[0]->name);
+    for(int i = 0; i < MAX_GAME_PLAYERS; i++) {
+        if(terminatedRound->players[i] != NULL) {
+            if(strlen(terminatedRound->players[i]->name) > maxNameSize) {
+                maxNameSize = strlen(terminatedRound->players[i]->name);
+            }
+        }
+    }
+
+    return maxNameSize;
+}
+
+int printRoundTerminationMessage(struct Round *terminatedRound, int *oldScore)
+{
+    if(terminatedRound == NULL || terminatedRound->players == NULL)
+        return ROUND_NULL;
+
+    init_pair(2, COLOR_GREEN, COLOR_BLACK);
+    init_pair(1, COLOR_RED, COLOR_BLACK);
+
+    int colorPair;
+    int score;
+    int playersNameWidth;  // used for alignmet
+    int scoreLineSize = getBiggestNameSize(terminatedRound) + ROUND_DIALOG_SCORE_SIZE;
+
+    printw("  _____                       _        _     _ \n"     
+             " / ____|                     | |      | |   | |     \n"
+            " | (___   ___ ___  _ __ ___  | |_ __ _| |__ | | ___ \n"
+             "  \\___ \\ / __/ _ \\| '__/ _ \\ | __/ _` | '_ \\| |/ _ \\\n"
+             "  ____) | (_| (_) | | |  __/ | || (_| | |_) | |  __/\n"
+            " |_____/ \\___\\___/|_|  \\___|  \\__\\__,_|_.__/|_|\\___|\n\n\n");
+
+    for(int i = 0; i < MAX_GAME_PLAYERS; i++) {
+        if(terminatedRound->players[i] != NULL) {
+            printw("%s", terminatedRound->players[i]->name); 
+            playersNameWidth = strlen(terminatedRound->players[i]->name);
+
+            score = terminatedRound->players[i]->score - oldScore[i];         
+            colorPair = (score > 0) ? 2 : 1;
+
+            attron(COLOR_PAIR(colorPair));
+            printw("%+*d \n", scoreLineSize - playersNameWidth, score);
+            attroff(COLOR_PAIR(colorPair));
+         
+        }
+    }
+    return NO_ERROR;
 }
 

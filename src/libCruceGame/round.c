@@ -1,3 +1,11 @@
+/**
+ * @file round.c
+ * @brief Contains implementations of the functions used for creation or
+ *        deletion of a round. Also, it contains implementations for the 
+ *        functions used to handle different activities in a round, like
+ *        removing a player.
+ */
+
 #include "round.h"
 #include "errors.h"
 
@@ -205,41 +213,47 @@ int round_removePlayerHand(struct Player *player, struct Hand *hand)
     return NOT_FOUND;
 }
 
-int round_putCard(struct Player *player, int cardId,struct Hand *hand)
+int round_putCard(struct Player *player, int cardId,
+                  int handId, struct Round *round)
 {
     if (player == NULL)
         return PLAYER_NULL;
     if (player->hand[cardId] == NULL)
         return CARD_NULL;
-    if (hand == NULL)
+    if (round == NULL)
+        return ROUND_NULL;
+    if (round->hands[handId] == NULL)
         return HAND_NULL;
 
     for (int i = 0; i < MAX_GAME_PLAYERS; i++) {
-        if (hand->players[i] == player){
-            hand->cards[i] = player->hand[cardId];
+        if (round->hands[handId]->players[i] == player){
+            round->hands[handId]->cards[i] = player->hand[cardId];
+            enum Suit suit = player->hand[cardId]->suit;
+            int value = player->hand[cardId]->value;
             player->hand[cardId] = NULL;
+            if (i == 0 && (value == 3 || value == 4)) {
+                int check = 0;
+                for (int j = 0; j < MAX_CARDS; j++) {
+                    if (player->hand[j] != NULL &&
+                       (player->hand[j]->value == 3 ||
+                        player->hand[j]->value == 4) &&
+                        suit == player->hand[j]->suit) {
+                        check = 1;
+                    }
+                }
+                if (check == 1) {
+                    int position = round_findPlayerIndexRound(player, round);
+                    if (suit == round->trump)
+                        round->pointsNumber[position] += 40;
+                    else
+                        round->pointsNumber[position] += 20;
+                }
+            }
             return NO_ERROR;
         }
     }
 
     return NOT_FOUND;
-}
-
-int round_computeScore(const struct Hand *hand)
-{
-    if (hand == NULL)
-        return HAND_NULL;
-
-    int cardsScore = 0;
-    for (int i = 0; hand->players[i] != NULL; i++) {
-        if (hand->cards[i] == NULL)
-            return CARD_NULL;
-        cardsScore += hand->cards[i]->value;
-    }
-
-    int gameScore = cardsScore / 33;
-
-    return gameScore;
 }
 
 int totalPointsNumber(const struct Hand *hand)

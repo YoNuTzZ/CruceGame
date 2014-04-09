@@ -1,3 +1,9 @@
+/**
+* @file team.c
+* @brief Contains implementations for the functions used for team-related 
+*        operations, like creating and deleting a team.
+*/
+
 #include "team.h"
 #include "constants.h"
 #include "errors.h"
@@ -179,3 +185,4 @@ int team_hasCards(struct Player *player)
     
     return 0;
 }
+
