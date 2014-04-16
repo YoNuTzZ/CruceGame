@@ -122,5 +122,5 @@ int getScoreLimit();
  *
  * @return int The size of the biggest name of a player in a round.
  */
-int printRoundTerminationMessage(struct Round *terminatedRound, int *oldScore);
+int printRoundTerminationMessage(struct Game *currentGame, int *oldScore);
 

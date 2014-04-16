@@ -578,15 +578,15 @@ int getBiggestNameSize(struct Round *terminatedRound)
     return maxNameSize;
 }
 
-int printRoundTerminationMessage(struct Round *terminatedRound, int *oldScore)
+int printRoundTerminationMessage(struct Game *currentGame, int *oldScore)
 {
-    if(terminatedRound == NULL || terminatedRound->players == NULL)
+    if(currentGame->round == NULL || currentGame->round->players == NULL)
         return ROUND_NULL;
 
     init_pair(2, COLOR_GREEN, COLOR_BLACK);
     init_pair(1, COLOR_RED, COLOR_BLACK);
 
-    int scoreLineSize = getBiggestNameSize(terminatedRound) + 
+    int scoreLineSize = getBiggestNameSize(currentGame->round) + 
                                            ROUND_DIALOG_SCORE_SIZE;
 
     printw("  _____                       _        _     _ \n"     
@@ -596,6 +596,28 @@ int printRoundTerminationMessage(struct Round *terminatedRound, int *oldScore)
              "  ____) | (_| (_) | | |  __/ | || (_| | |_) | |  __/\n"
             " |_____/ \\___\\___/|_|  \\___|  \\__\\__,_|_.__/|_|\\___|\n\n\n");
 
+    for(int i = 0; i < MAX_GAME_TEAMS; i++) {
+        if(currentGame->teams[i] != NULL) {
+            for(int j = 0; j < 2; j++) {
+                if(currentGame->teams[i]->players[j] != NULL) {
+                   printw("%s ", currentGame->teams[i]->players[j]->name);
+                }
+            }
+            
+            int score = currentGame->teams[i]->score - oldScore[i];         
+            int colorPair = (score > 0) ? 2 : 1;
+            if(score != 0) { 
+                attron(COLOR_PAIR(colorPair));
+                printw("%d\n", currentGame->teams[i]->score);
+                attroff(COLOR_PAIR(colorPair));
+            } else {
+                printw("%d\n", currentGame->teams[i]->score);
+            }
+
+        }
+    }
+/*
+    
     for(int i = 0; i < MAX_GAME_PLAYERS; i++) {
         if(terminatedRound->players[i] != NULL) {
             printw("%s", terminatedRound->players[i]->name); 
@@ -604,12 +626,13 @@ int printRoundTerminationMessage(struct Round *terminatedRound, int *oldScore)
             int score = terminatedRound->players[i]->score - oldScore[i];         
             int colorPair = (score > 0) ? 2 : 1;
 
-            attron(COLOR_PAIR(colorPair));
+            
             printw("%+*d \n", scoreLineSize - playersNameWidth, score);
-            attroff(COLOR_PAIR(colorPair));
+            
          
         }
     }
+  */  
     return NO_ERROR;
 }
 
